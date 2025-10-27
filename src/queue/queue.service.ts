@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { QUEUES } from './queues.constants';
+import { BitrixPayload } from 'src/shared/types';
 
 @Injectable()
 export class QueueService {
@@ -15,8 +16,8 @@ export class QueueService {
     });
   }
 
-  async addNotificationJob(payload: any) {
-    await this.notificationQueue.add('notify-admin', payload, {
+  async addNotificationJob(payload: BitrixPayload) {
+    return this.notificationQueue.add('notify-admin', payload, {
       attempts: 5,
       backoff: {
         type: 'exponential',

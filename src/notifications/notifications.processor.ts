@@ -20,7 +20,7 @@ export class NotificationsProcessor {
       QUEUES.NOTIFICATION,
       async (job: Job) => {
         this.logger.log(`Processing job ${job.id}`);
-        await this.notificationsService.notifyAllChannels(job.data);
+        return this.notificationsService.notifyAllChannels(job.data);
       },
       {
         connection: {

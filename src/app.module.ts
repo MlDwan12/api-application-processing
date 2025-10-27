@@ -6,6 +6,7 @@ import { NotificationsModule } from './notifications';
 import { HealthModule } from './health/health.module';
 import { QueueModule } from './queue';
 import { MonitoringModule } from './monitoring';
+import { LeadsModule } from './leads/leads.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MonitoringModule } from './monitoring';
     NotificationsModule,
     HealthModule,
     MonitoringModule,
+    LeadsModule,
   ],
   controllers: [],
   providers: [],

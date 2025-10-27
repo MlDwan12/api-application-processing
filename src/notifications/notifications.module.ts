@@ -3,9 +3,10 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsProcessor } from './notifications.processor';
 import { NotificationsHealthIndicator } from './notifications.health';
 import { QueueModule } from '../queue/queue.module';
+import { LeadsModule } from 'src/leads/leads.module';
 
 @Module({
-  imports: [QueueModule],
+  imports: [QueueModule, LeadsModule],
   providers: [
     NotificationsService,
     NotificationsProcessor,

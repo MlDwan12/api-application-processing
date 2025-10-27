@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { BITRIX_WEBHOOK_URL } from './notifications.constants';
+import { BitrixCurrency } from 'src/shared/enums';
+import { BitrixPayload } from 'src/shared/types';
+import { LeadsService } from 'src/leads/leads.service';
 
 @Injectable()
 export class NotificationsService {
@@ -9,7 +12,10 @@ export class NotificationsService {
   private transporter;
   private telegramBot;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly leadsService: LeadsService,
+  ) {
     // ----------------- Настройка SMTP (Email) -----------------
     const host = this.config.get<string>('SMTP_HOST');
     const port = this.config.get<number>('SMTP_PORT');
@@ -41,11 +47,7 @@ export class NotificationsService {
   }
 
   // ----------------- Bitrix уведомление -----------------
-  async sendBitrixNotification(payload: {
-    name: string;
-    email: string;
-    message?: string;
-  }) {
+  async sendBitrixNotification(payload: BitrixPayload) {
     try {
       const lead = {
         fields: {
@@ -53,10 +55,33 @@ export class NotificationsService {
           NAME: payload.name,
           EMAIL: [{ VALUE: payload.email, VALUE_TYPE: 'WORK' }],
           COMMENTS: payload.message || '',
+          OPPORTUNITY: payload.opportunity || 0,
+          CURRENCY_ID: payload.currency_id || BitrixCurrency.RUB,
+          PHONE: [
+            {
+              VALUE: payload.phone || '',
+              VALUE_TYPE: 'WORK',
+            },
+          ],
         },
       };
 
       const response = await axios.post(BITRIX_WEBHOOK_URL, lead);
+
+      await this.leadsService.createLead({
+        bitrixId: response.data.result.toString() as number,
+        title: `Заявка от ${payload.name}`,
+        contactName: payload.name,
+        contactEmail: payload.email,
+        contactPhone: payload.phone,
+        opportunity: payload.opportunity,
+        currency: payload.currency_id,
+        additionalData: {
+          message: payload.message,
+          applicationId: payload.applicationId,
+        },
+        processed: true,
+      });
       this.logger.log(`Bitrix response: ${JSON.stringify(response.data)}`);
     } catch (error) {
       this.logger.error(`Bitrix error: ${(error as Error).message}`);
@@ -81,7 +106,7 @@ export class NotificationsService {
   // ----------------- Telegram уведомление -----------------
   //   async sendTelegramNotification(payload: any) {
   //     try {
-  //       const message = `📌 Новая заявка\nИмя: ${payload.name}\nEmail: ${payload.email}\nСообщение: ${payload.message || '-'}`;
+  //       const message = `Новая заявка\nИмя: ${payload.name}\nEmail: ${payload.email}\nСообщение: ${payload.message || '-'}`;
   //       await this.telegramBot.sendMessage(
   //         this.config.get('ADMIN_TELEGRAM_ID'),
   //         message,
@@ -93,7 +118,8 @@ export class NotificationsService {
   //   }
 
   // ----------------- Отправка уведомлений по всем каналам -----------------
-  async notifyAllChannels(payload: any) {
+  async notifyAllChannels(payload: BitrixPayload) {
+    const responseSummary = {};
     const results = await Promise.allSettled([
       this.sendBitrixNotification(payload),
       //   this.sendEmailNotification(payload),
@@ -103,10 +129,13 @@ export class NotificationsService {
     results.forEach((res, idx) => {
       const channel = ['Bitrix', 'Email', 'Telegram'][idx];
       if (res.status === 'fulfilled') {
+        responseSummary[channel] = res.value;
         this.logger.log(`${channel} notification sent successfully`);
       } else {
+        responseSummary[channel] = { error: res.reason };
         this.logger.error(`${channel} notification failed: ${res.reason}`);
       }
     });
+    return responseSummary;
   }
 }
