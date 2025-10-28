@@ -1,10 +1,16 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
-import { BITRIX_WEBHOOK_URL } from './notifications.constants';
-import { BitrixCurrency } from 'src/shared/enums';
-import { BitrixPayload } from 'src/shared/types';
+import axios, { AxiosResponse } from 'axios';
 import { LeadsService } from 'src/leads/leads.service';
+import { BitrixCurrency } from 'src/shared/enums';
+import {
+  BitrixLead,
+  BitrixPayload,
+  BitrixResponse,
+  BitrixUserField,
+  BitrixUserFieldListResponse,
+} from 'src/shared/types';
 
 @Injectable()
 export class NotificationsService {
@@ -41,14 +47,42 @@ export class NotificationsService {
     // this.telegramBot = new TelegramBot(token);
 
     // ----------------- Проверка Bitrix Webhook -----------------
-    if (!BITRIX_WEBHOOK_URL) {
-      throw new Error('BITRIX_WEBHOOK_URL is missing in .env');
-    }
   }
 
   // ----------------- Bitrix уведомление -----------------
-  async sendBitrixNotification(payload: BitrixPayload) {
+  async sendBitrixNotification(
+    payload: BitrixPayload,
+  ): Promise<BitrixResponse<BitrixLead> | void> {
     try {
+      const webhookUrl = this.config.get<string>('BITRIX_WEBHOOK_URL')!;
+
+      const userFields = await axios.get<BitrixUserFieldListResponse>(
+        `${webhookUrl}/crm.lead.userfield.list.json`,
+      );
+
+      const hasField = userFields.data.result.some(
+        (f: BitrixUserField) =>
+          f.FIELD_NAME === 'UF_CRM_CREATED_BY_API' ||
+          f.XML_ID === 'UF_CREATED_BY_API',
+      );
+
+      if (!hasField) {
+        await axios
+          .post(`${webhookUrl}/crm.lead.userfield.add.json`, {
+            fields: {
+              FIELD_NAME: 'UF_CRM_CREATED_BY_API',
+              EDIT_FORM_LABEL: { ru: 'Создано через API' },
+              LIST_COLUMN_LABEL: { ru: 'Создано через API' },
+              USER_TYPE_ID: 'boolean',
+              XML_ID: 'UF_CREATED_BY_API',
+              SETTINGS: { DEFAULT_VALUE: true },
+            },
+          })
+          .catch((error) => {
+            return error;
+          });
+      }
+
       const lead = {
         fields: {
           TITLE: `Новая заявка от ${payload.name}`,
@@ -63,25 +97,16 @@ export class NotificationsService {
               VALUE_TYPE: 'WORK',
             },
           ],
+          SOURCE_ID: 'WEB',
+          UF_CRM_CREATED_BY_API: true,
         },
       };
 
-      const response = await axios.post(BITRIX_WEBHOOK_URL, lead);
+      const response: AxiosResponse<BitrixLead> = await axios.post(
+        `${webhookUrl}/crm.lead.add.json`,
+        lead,
+      );
 
-      await this.leadsService.createLead({
-        bitrixId: response.data.result.toString() as number,
-        title: `Заявка от ${payload.name}`,
-        contactName: payload.name,
-        contactEmail: payload.email,
-        contactPhone: payload.phone,
-        opportunity: payload.opportunity,
-        currency: payload.currency_id,
-        additionalData: {
-          message: payload.message,
-          applicationId: payload.applicationId,
-        },
-        processed: true,
-      });
       this.logger.log(`Bitrix response: ${JSON.stringify(response.data)}`);
     } catch (error) {
       this.logger.error(`Bitrix error: ${(error as Error).message}`);
@@ -132,6 +157,7 @@ export class NotificationsService {
         responseSummary[channel] = res.value;
         this.logger.log(`${channel} notification sent successfully`);
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         responseSummary[channel] = { error: res.reason };
         this.logger.error(`${channel} notification failed: ${res.reason}`);
       }

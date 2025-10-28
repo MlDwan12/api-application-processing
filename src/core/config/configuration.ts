@@ -24,4 +24,8 @@ export default () => ({
     token: process.env.TELEGRAM_BOT_TOKEN,
     chatId: process.env.TELEGRAM_CHAT_ID,
   },
+  bitrix: {
+    webhookUrl: process.env.BITRIX_WEBHOOK_URL,
+    webhookUrlGetLead: process.env.BITRIX_WEBHOOK_URL_GET_LEAD,
+  },
 });

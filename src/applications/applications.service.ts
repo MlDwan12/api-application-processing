@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   BadRequestException,
   Injectable,
@@ -5,12 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ApplicationEntity } from './entities/application.entity';
-import { CreateApplicationDto } from './dto/create-application.dto';
-import { QueueService } from '../queue/queue.service';
-import { TariffEntity } from './entities';
 import { BitrixCurrency } from 'src/shared/enums';
+import { Repository } from 'typeorm';
+
+import { QueueService } from '../queue/queue.service';
+import { CreateApplicationDto } from './dto/create-application.dto';
+import { TariffEntity } from './entities';
+import { ApplicationEntity } from './entities/application.entity';
 
 @Injectable()
 export class ApplicationsService {
@@ -68,7 +70,7 @@ export class ApplicationsService {
 
     // Добавляем задачу на уведомление админа
     try {
-      const lead = await this.queueService.addNotificationJob({
+      await this.queueService.addNotificationJob({
         applicationId: saved.id,
         name: saved.name,
         email: saved.email,
@@ -77,7 +79,6 @@ export class ApplicationsService {
         opportunity: tariff?.price,
         currency_id: BitrixCurrency.RUB,
       });
-      console.log('lead===>', lead);
     } catch (error) {
       this.logger.error(
         `Ошибка при добавлении уведомления в очередь: ${error.message}`,

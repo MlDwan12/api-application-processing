@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
+  HealthCheckError,
   HealthIndicator,
   HealthIndicatorResult,
-  HealthCheckError,
   HealthIndicatorStatus,
 } from '@nestjs/terminus';
 import axios from 'axios';
-import { ConfigService } from '@nestjs/config';
+
 import { BITRIX_WEBHOOK_URL } from './notifications.constants';
 
 @Injectable()
@@ -67,7 +68,8 @@ export class NotificationsHealthIndicator extends HealthIndicator {
       result[key] = {
         status: 'down' as HealthIndicatorStatus,
         details: {
-          bitrix: (err as any).response?.data || (err as Error).message,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          bitrix: err.response?.data || (err as Error).message,
         },
       };
     }

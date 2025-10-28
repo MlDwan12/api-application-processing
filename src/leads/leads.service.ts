@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { LeadEntity } from './entities/lead.entity';
 
 @Injectable()
@@ -13,7 +14,12 @@ export class LeadsService {
   ) {}
 
   async createLead(data: Partial<LeadEntity>): Promise<LeadEntity> {
-    const lead = this.repo.create(data);
+    if (!data.bitrixId) {
+      this.logger.error('Попытка сохранить лид без Bitrix ID');
+      throw new Error('Bitrix ID обязателен');
+    }
+
+    const lead = this.repo.create({ ...data, createdByApi: true });
     const saved = await this.repo.save(lead);
     this.logger.log(`Лид создан с Bitrix ID=${saved.bitrixId}`);
     return saved;
@@ -27,10 +33,15 @@ export class LeadsService {
     return lead;
   }
 
-  async markProcessed(bitrixId: number): Promise<LeadEntity> {
+  async updateLeadStatus(
+    bitrixId: number,
+    data: Partial<Pick<LeadEntity, 'status' | 'processed'>>,
+  ): Promise<LeadEntity> {
     const lead = await this.findLeadByBitrixId(bitrixId);
-    lead.processed = true;
-    return this.repo.save(lead);
+    Object.assign(lead, data);
+    const updated = await this.repo.save(lead);
+    this.logger.log(`Лид ${bitrixId} обновлён: ${JSON.stringify(data)}`);
+    return updated;
   }
 
   async getAllLeads(): Promise<LeadEntity[]> {

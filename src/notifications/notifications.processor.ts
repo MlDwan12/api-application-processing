@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NotificationsService } from './notifications.service';
-import { QUEUES } from '../queue/queues.constants';
-import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
+import { Job, Worker } from 'bullmq';
+
+import { QUEUES } from '../queue/queues.constants';
+import { NotificationsService } from './notifications.service';
 
 @Injectable()
 export class NotificationsProcessor {
@@ -20,6 +21,7 @@ export class NotificationsProcessor {
       QUEUES.NOTIFICATION,
       async (job: Job) => {
         this.logger.log(`Processing job ${job.id}`);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return this.notificationsService.notifyAllChannels(job.data);
       },
       {

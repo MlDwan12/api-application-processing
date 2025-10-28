@@ -1,11 +1,15 @@
-import { BitrixCurrency } from 'src/shared/enums';
 import {
-  Entity,
-  PrimaryGeneratedColumn,
+  BitrixCurrency,
+  LeadStatus,
+  ProcessedStatusEnum,
+} from 'src/shared/enums';
+import {
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'leads' })
@@ -38,8 +42,22 @@ export class LeadEntity {
   @Column('jsonb', { nullable: true })
   additionalData?: Record<string, any>;
 
-  @Column({ default: false })
-  processed: boolean;
+  @Column({
+    type: 'enum',
+    enum: ProcessedStatusEnum,
+    default: ProcessedStatusEnum.P,
+  })
+  processed: ProcessedStatusEnum;
+
+  @Column({
+    type: 'enum',
+    enum: LeadStatus,
+    default: LeadStatus.NEW,
+  })
+  status: LeadStatus;
+
+  @Column({ default: true })
+  createdByApi: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEnum,
@@ -7,9 +8,8 @@ import {
   IsString,
   ValidateIf,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ApplicationInput } from 'src/shared/types';
 import { ApplicationType } from 'src/shared/enums';
+import { ApplicationInput } from 'src/shared/types';
 
 export class CreateApplicationDto implements ApplicationInput {
   @ApiProperty({
